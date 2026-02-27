@@ -3,16 +3,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api.routes import auth, products, orders, agent
+from app.api.routes import auth, products, orders, agent, approvals, websocket
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Start up: create tables if they don't exist
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Mock lifespan
     yield
-    # Shutdown
-    await engine.dispose()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -33,6 +29,8 @@ app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["aut
 app.include_router(products.router, prefix=f"{settings.API_V1_STR}/products", tags=["products"])
 app.include_router(orders.router, prefix=f"{settings.API_V1_STR}/orders", tags=["orders"])
 app.include_router(agent.router, prefix=f"{settings.API_V1_STR}/agent", tags=["agent"])
+app.include_router(approvals.router, prefix=f"{settings.API_V1_STR}/approvals", tags=["approvals"])
+app.include_router(websocket.router, tags=["websocket"])
 
 @app.get("/health")
 async def health_check():
