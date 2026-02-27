@@ -13,10 +13,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen flex flex-col antialiased">
+    <html lang="en">
+      <body style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
         <Header />
-        <main className="flex-1 flex flex-col">
+        <main style={{ flex: 1, display: "flex", flexDirection: "column" }}>
           {children}
         </main>
       </body>

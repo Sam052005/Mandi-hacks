@@ -1,20 +1,20 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SearchBar } from "@/components/shop/SearchBar";
 import {
     ShoppingBag,
-    LayoutDashboard,
+    Shield,
     History,
     Wallet,
-    Shield,
-    Search
+    Search,
+    Bot,
+    ChevronDown,
 } from "lucide-react";
-import { motion } from "framer-motion";
 
 export function Header() {
     const pathname = usePathname();
+    const [searchVal, setSearchVal] = useState("");
 
     const navItems = [
         { name: "Shop", href: "/products", icon: ShoppingBag },
@@ -24,59 +24,107 @@ export function Header() {
     ];
 
     return (
-        <header className="sticky top-0 z-[100] w-full border-b border-white/5 bg-slate-950/60 backdrop-blur-2xl">
-            <div className="container mx-auto px-6 h-20 flex items-center justify-between gap-8">
+        <header style={{
+            position: "sticky", top: 0, zIndex: 100,
+            borderBottom: "1px solid var(--border)",
+            background: "var(--bg-surface)",
+        }}>
+            {/* Top bar */}
+            <div style={{
+                display: "flex", alignItems: "center",
+                height: 52, padding: "0 20px", gap: 16,
+            }}>
                 {/* Logo */}
-                <Link href="/" className="flex items-center gap-4 group shrink-0">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-emerald-400 flex items-center justify-center font-black text-white shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-transform group-hover:scale-110">
-                        A
-                    </div>
-                    <div className="hidden lg:block">
-                        <span className="text-xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 uppercase tracking-tighter">
+                <Link href="/" style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    textDecoration: "none", flexShrink: 0,
+                }}>
+                    <div style={{
+                        width: 28, height: 28, borderRadius: 7,
+                        background: "linear-gradient(135deg,#3b82f6,#22c55e)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 13, fontWeight: 800, color: "white",
+                    }}>A</div>
+                    <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-hi)", letterSpacing: "-0.01em" }}>
                             AutonoMarket
                         </span>
-                        <div className="h-0.5 w-0 group-hover:w-full bg-blue-500 transition-all duration-300" />
+                        <span style={{ fontSize: 9, color: "var(--text-lo)", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                            Agentic Commerce
+                        </span>
                     </div>
                 </Link>
 
-                {/* Search - Desktop */}
-                <div className="hidden md:flex flex-1 max-w-2xl">
-                    <SearchBar />
+                {/* Divider */}
+                <div style={{ width: 1, height: 24, background: "var(--border)", flexShrink: 0 }} />
+
+                {/* Search */}
+                <div style={{
+                    flex: 1, maxWidth: 400,
+                    display: "flex", alignItems: "center", gap: 8,
+                    background: "var(--bg-elevated)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 7, padding: "0 12px", height: 32,
+                }}>
+                    <Search size={13} color="var(--text-lo)" />
+                    <input
+                        value={searchVal}
+                        onChange={e => setSearchVal(e.target.value)}
+                        placeholder="Search products, orders..."
+                        style={{
+                            background: "transparent", border: "none", outline: "none",
+                            color: "var(--text-hi)", fontSize: 13, width: "100%",
+                            caretColor: "#60a5fa",
+                        }}
+                    />
                 </div>
 
-                {/* Navigation */}
-                <nav className="flex items-center gap-2 lg:gap-8">
-                    <div className="hidden lg:flex items-center gap-6">
-                        {navItems.map((item) => {
-                            const isActive = pathname === item.href;
-                            return (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    className={`relative px-3 py-2 text-sm font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${isActive ? 'text-white' : 'text-slate-500 hover:text-white'
-                                        }`}
-                                >
-                                    <item.icon size={16} className={isActive ? 'text-blue-400' : ''} />
-                                    {item.name}
-                                    {item.badge && (
-                                        <span className="flex h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_#3b82f6]" />
-                                    )}
-                                    {isActive && (
-                                        <motion.div
-                                            layoutId="activeNav"
-                                            className="absolute -bottom-[26px] left-0 right-0 h-1 bg-blue-500 rounded-t-full shadow-[0_0_15px_#3b82f6]"
-                                        />
-                                    )}
-                                </Link>
-                            );
-                        })}
+                {/* Nav */}
+                <nav style={{ display: "flex", alignItems: "center", gap: 2, marginLeft: "auto" }}>
+                    {navItems.map((item) => {
+                        const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
+                        return (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                className={`nav-link${isActive ? " active" : ""}`}
+                            >
+                                <item.icon size={14} />
+                                {item.name}
+                                {item.badge && (
+                                    <span style={{
+                                        width: 6, height: 6, borderRadius: "50%",
+                                        background: "#3b82f6", boxShadow: "0 0 5px #3b82f6",
+                                        display: "inline-block",
+                                    }} />
+                                )}
+                            </Link>
+                        );
+                    })}
+
+                    <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 6px" }} />
+
+                    {/* AI status chip */}
+                    <div style={{
+                        display: "flex", alignItems: "center", gap: 6,
+                        padding: "4px 10px", borderRadius: 6,
+                        background: "rgba(34,197,94,0.08)",
+                        border: "1px solid rgba(34,197,94,0.18)",
+                        fontSize: 11.5, fontWeight: 600, color: "#4ade80",
+                        cursor: "default",
+                    }}>
+                        <span className="dot-green" />
+                        <Bot size={12} />
+                        Agents Live
                     </div>
 
-                    <div className="w-px h-8 bg-white/5 hidden lg:block"></div>
+                    <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 6px" }} />
 
-                    <button className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-white font-black text-xs uppercase tracking-widest transition-all group active:scale-95 shadow-xl">
-                        <Wallet size={16} className="text-blue-400 group-hover:scale-110 transition-transform" />
-                        <span className="hidden sm:inline">Connect Wallet</span>
+                    {/* Wallet */}
+                    <button className="btn-ghost" style={{ fontSize: 12 }}>
+                        <Wallet size={13} />
+                        0x71C…4920
+                        <ChevronDown size={12} />
                     </button>
                 </nav>
             </div>
