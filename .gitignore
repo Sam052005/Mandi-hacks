@@ -2,7 +2,7 @@
 venv/
 env/
 .env
-
+# autonomarket\backend\.env
 # Python
 __pycache__/
 *.py[cod]

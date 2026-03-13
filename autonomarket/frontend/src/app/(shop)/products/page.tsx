@@ -1,23 +1,38 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Bot, Zap, Filter, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-
-const PRODUCTS = [
-    { id: 1, name: "Sony WH-1000XM5 Wireless Headphones", category: "Audio", price: 29999, score: 9.2, risk: "Low", negotiated: true },
-    { id: 2, name: "Apple MacBook Air M3", category: "Compute", price: 114900, score: 7.1, risk: "High", negotiated: false },
-    { id: 3, name: "Keychron Q1 Pro Mechanical Keyboard", category: "Peripherals", price: 16500, score: 9.6, risk: "Low", negotiated: true },
-    { id: 4, name: "LG 27GP850-B UltraGear Gaming Monitor", category: "Display", price: 35000, score: 8.4, risk: "Low", negotiated: true },
-    { id: 5, name: "Logitech MX Master 3S", category: "Peripherals", price: 8900, score: 9.0, risk: "Low", negotiated: true },
-];
+import axios from "axios";
 
 const CATEGORIES = ["All", "Audio", "Compute", "Peripherals", "Display"];
 const riskBadge: Record<string, string> = { Low: "badge-green", Medium: "badge-amber", High: "badge-red" };
 
 export default function ProductsPage() {
+    const [products, setProducts] = useState<any[]>([]);
     const [active, setActive] = useState("All");
-    const filtered = active === "All" ? PRODUCTS : PRODUCTS.filter(p => p.category === active);
+
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const res = await axios.get("http://localhost:8000/api/v1/products/");
+                setProducts(res.data.map((p: any) => ({
+                    id: p.id,
+                    name: p.name,
+                    category: p.name.includes('Headphone') ? 'Audio' : p.name.includes('MacBook') ? 'Compute' : 'Peripherals',
+                    price: p.price,
+                    score: 9.0 + (p.id % 10) / 10, // Mock score for demo
+                    risk: "Low",
+                    negotiated: true
+                })));
+            } catch (e) {
+                console.error("Failed to fetch products:", e);
+            }
+        };
+        fetchProducts();
+    }, []);
+
+    const filtered = active === "All" ? products : products.filter(p => p.category === active);
 
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: 28, maxWidth: 1100, margin: "0 auto" }}>
@@ -28,7 +43,7 @@ export default function ProductsPage() {
                         AI-Curated Catalog
                     </h1>
                     <p style={{ fontSize: 12, color: "var(--text-mid)", margin: "4px 0 0" }}>
-                        {PRODUCTS.length} products · Negotiation protocol active
+                        {products.length} products · Negotiation protocol active
                     </p>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>

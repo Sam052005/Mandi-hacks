@@ -1,32 +1,48 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Shield, AlertTriangle, CheckCircle } from "lucide-react";
-
-const MOCK_APPROVALS = [
-    {
-        id: 1, order_id: 101,
-        product_name: "Apple MacBook Air M3",
-        supplier_id: 12, amount: 114900.0,
-        status: "PENDING", risk_score: "High",
-        reason: "Transaction value exceeds auto-approval threshold of ₹50,000."
-    },
-    {
-        id: 2, order_id: 102,
-        product_name: "Bulk Order: Keychron Keyboards ×50",
-        supplier_id: 8, amount: 825000.0,
-        status: "PENDING", risk_score: "Critical",
-        reason: "New supplier — first transaction over ₹5,00,000. Manual review required."
-    }
-];
+import axios from "axios";
 
 const riskBadge: Record<string, string> = { Low: "badge-green", Medium: "badge-amber", High: "badge-red", Critical: "badge-red" };
 
 export default function ApprovalsPage() {
-    const [approvals, setApprovals] = useState(MOCK_APPROVALS);
+    const [approvals, setApprovals] = useState<any[]>([]);
 
-    const handleAction = (id: number) => {
-        setApprovals(prev => prev.filter(a => a.id !== id));
+    const fetchApprovals = async () => {
+        try {
+            const res = await axios.get("http://localhost:8000/api/v1/approvals/");
+            setApprovals(res.data.map((a: any) => ({
+                id: a.id,
+                order_id: a.order_id,
+                product_name: a.product_name,
+                supplier_id: a.supplier_id || "Unknown",
+                amount: a.amount,
+                status: a.status,
+                risk_score: "High", // simplified for demo
+                reason: "Value threshold exceeded via LangGraph routing."
+            })));
+        } catch (e) {
+            console.error("Failed to fetch approvals:", e);
+        }
+    };
+
+    useEffect(() => {
+        fetchApprovals();
+        const interval = setInterval(fetchApprovals, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleAction = async (id: number, actionType: 'approve' | 'reject') => {
+        try {
+            await axios.post(`http://localhost:8000/api/v1/approvals/${id}/action`, {
+                action: actionType,
+                reason: "Human reviewed"
+            });
+            fetchApprovals();
+        } catch (e) {
+            console.error("Failed to submit action", e);
+        }
     };
 
     return (
@@ -99,10 +115,10 @@ export default function ApprovalsPage() {
                                         <span className={riskBadge[a.risk_score]}>{a.risk_score}</span>
                                     </span>
                                     <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                                        <button className="btn-success" onClick={() => handleAction(a.id)}>
+                                        <button className="btn-success" onClick={() => handleAction(a.id, 'approve')}>
                                             <CheckCircle size={12} /> Approve
                                         </button>
-                                        <button className="btn-danger" onClick={() => handleAction(a.id)}>
+                                        <button className="btn-danger" onClick={() => handleAction(a.id, 'reject')}>
                                             Reject
                                         </button>
                                     </div>

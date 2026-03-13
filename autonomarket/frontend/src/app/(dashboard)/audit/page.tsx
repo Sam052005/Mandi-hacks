@@ -1,44 +1,34 @@
 "use client";
-
-const MOCK_AUDIT = [
-    {
-        time: "10:42:01",
-        actor: "User",
-        action: "Query Initiated",
-        details: "Search for 'wireless headphones'",
-        status: "Signed"
-    },
-    {
-        time: "10:42:05",
-        actor: "Discovery Agent",
-        action: "Product Identified",
-        details: "Match: Sony WH-1000XM5 (ID: 1)",
-        status: "Verified"
-    },
-    {
-        time: "10:42:15",
-        actor: "Negotiation Agent",
-        action: "Price Bargained",
-        details: "₹29,999 -> ₹26,999 (-10%)",
-        status: "Verified"
-    },
-    {
-        time: "10:42:18",
-        actor: "Routing Agent",
-        action: "Threshold Check",
-        details: "Auto-approve: True (Value < 30k)",
-        status: "Verified"
-    },
-    {
-        time: "10:42:20",
-        actor: "Audit Logger",
-        action: "Merkle Root Generated",
-        details: "Root: 0x92af...88cc",
-        status: "Anchored"
-    }
-];
+import { useState, useEffect } from "react";
+import axios from "axios";
 
 export default function AuditPage() {
+    const [auditLogs, setAuditLogs] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchAudit = async () => {
+            try {
+                const res = await axios.get("http://localhost:8000/api/v1/audit/");
+                setAuditLogs(res.data.map((log: any) => {
+                    const date = new Date(log.created_at);
+                    return {
+                        time: date.toLocaleTimeString(),
+                        actor: "Agent Nexus",
+                        action: log.action,
+                        details: log.details,
+                        status: "Anchored",
+                        signature: log.signature
+                    };
+                }));
+            } catch (e) {
+                console.error("Failed to fetch audit logs:", e);
+            }
+        };
+        fetchAudit();
+        const interval = setInterval(fetchAudit, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
     return (
         <div className="max-w-4xl mx-auto px-4 py-12 w-full flex-1 font-mono">
             <div className="mb-12">
@@ -50,7 +40,7 @@ export default function AuditPage() {
                 {/* Vertical Line */}
                 <div className="absolute left-4 top-0 bottom-0 w-px bg-gray-800 z-0"></div>
 
-                {MOCK_AUDIT.map((log, idx) => (
+                {auditLogs.map((log: any, idx: number) => (
                     <div key={idx} className="relative z-10 flex items-start gap-8 py-6 pl-10 group">
                         {/* Dot */}
                         <div className="absolute left-[13px] top-[32px] w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)] group-hover:bg-emerald-400 transition-colors"></div>
@@ -66,7 +56,8 @@ export default function AuditPage() {
                                 </span>
                             </div>
                             <h3 className="text-white font-semibold mb-1 uppercase text-sm">{log.action}</h3>
-                            <p className="text-gray-400 text-xs">{log.details}</p>
+                            <p className="text-gray-400 text-xs truncate max-w-full block" title={log.details}>{log.details}</p>
+                            <p className="text-gray-600 text-[9px] mt-2 font-mono break-all leading-tight">SIG: {log.signature}</p>
                         </div>
                     </div>
                 ))}

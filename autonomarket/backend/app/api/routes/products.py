@@ -1,33 +1,25 @@
-from fastapi import APIRouter
-from pydantic import BaseModel
-from typing import List
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
+from app.core.database import get_db
+from app.models.product import Product
 
 router = APIRouter()
 
-MOCK_PRODUCTS = [
-    {
-        "id": 1,
-        "name": "Sony WH-1000XM5 Wireless Headphones",
-        "description": "Industry leading noise canceling headphones.",
-        "price": 29999.0,
-        "stock_quantity": 42
-    },
-    {
-        "id": 2,
-        "name": "Apple MacBook Air M3",
-        "description": "Supercharged by M3, the MacBook Air is light and powerful.",
-        "price": 114900.0,
-        "stock_quantity": 15
-    },
-    {
-        "id": 3,
-        "name": "Keychron Q1 Pro Mechanical Keyboard",
-        "description": "A fully customizable 75% layout custom mechanical keyboard.",
-        "price": 16500.0,
-        "stock_quantity": 8
-    }
-]
-
 @router.get("/")
-async def list_products():
-    return MOCK_PRODUCTS
+async def list_products(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Product).options(selectinload(Product.supplier)))
+    products = result.scalars().all()
+    # Serialize to dict to match previous response structure for frontend
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "description": p.description,
+            "price": p.price,
+            "stock_quantity": p.stock,
+            "supplier": p.supplier.name if p.supplier else "Unknown"
+        }
+        for p in products
+    ]

@@ -7,29 +7,23 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-MOCK_PRODUCTS = [
-    {
-        "id": 1,
-        "name": "Sony WH-1000XM5 Wireless Headphones",
-        "description": "Industry leading noise canceling headphones.",
-        "price": 29999.0,
-        "stock_quantity": 42
-    },
-    {
-        "id": 2,
-        "name": "Apple MacBook Air M3",
-        "description": "Supercharged by M3, the MacBook Air is light and powerful.",
-        "price": 114900.0,
-        "stock_quantity": 15
-    },
-    {
-        "id": 3,
-        "name": "Keychron Q1 Pro Mechanical Keyboard",
-        "description": "A fully customizable 75% layout custom mechanical keyboard.",
-        "price": 16500.0,
-        "stock_quantity": 8
-    }
-]
+from app.core.database import AsyncSessionLocal
+from sqlalchemy.future import select
+from app.models.product import Product
+
+async def get_db_products():
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(Product))
+        return [
+            {
+                "id": p.id,
+                "name": p.name,
+                "description": p.description,
+                "price": p.price,
+                "stock_quantity": p.stock
+            }
+            for p in result.scalars().all()
+        ]
 
 # Initialize Gemini Flash
 llm = None
@@ -41,12 +35,15 @@ if settings.GOOGLE_API_KEY:
 
 async def discovery_node(state: AgentState) -> dict:
     query = state["query"]
+    db_products = await get_db_products()
     
     if not llm:
         # Fallback to faked logic if no API Key
-        selected = MOCK_PRODUCTS[0]
-        if "macbook" in query.lower(): selected = MOCK_PRODUCTS[1]
-        elif "keyboard" in query.lower(): selected = MOCK_PRODUCTS[2]
+        selected = db_products[0] if db_products else None
+        if not selected:
+             return {"reasoning": ["No products in database"]}
+        if "macbook" in query.lower(): selected = next((p for p in db_products if "macbook" in p["name"].lower()), selected)
+        elif "keyboard" in query.lower(): selected = next((p for p in db_products if "keyboard" in p["name"].lower()), selected)
         
         return {
             "selected_product_id": selected["id"],
@@ -57,7 +54,7 @@ async def discovery_node(state: AgentState) -> dict:
             "reasoning": [f"Discovery Agent (Simulated) identified '{selected['name']}'."]
         }
 
-    catalog_context = json.dumps(MOCK_PRODUCTS, indent=2)
+    catalog_context = json.dumps(db_products, indent=2)
     system_prompt = f"""
     You are the Discovery Agent for AutonoMarket.
     Your task: Match the user's query to the most relevant product in our catalog.
@@ -76,7 +73,9 @@ async def discovery_node(state: AgentState) -> dict:
         data = json.loads(resp.content.replace("```json", "").replace("```", "").strip())
         
         product_id = data.get("product_id")
-        selected = next((p for p in MOCK_PRODUCTS if p["id"] == product_id), MOCK_PRODUCTS[0])
+        selected = next((p for p in db_products if p["id"] == product_id), db_products[0] if db_products else None)
+        if not selected:
+             return {"reasoning": ["No products in database"]}
         
         return {
             "selected_product_id": selected["id"],
