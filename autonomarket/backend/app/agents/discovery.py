@@ -29,30 +29,35 @@ async def get_db_products():
 llm = None
 if settings.GOOGLE_API_KEY:
     try:
-        llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=settings.GOOGLE_API_KEY)
+        llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", google_api_key=settings.GOOGLE_API_KEY)
     except Exception as e:
         logger.error(f"Failed to initialize Gemini: {e}")
+
+def _simulated_discovery(query: str, db_products: list) -> dict:
+    """Keyword-based fallback when LLM is unavailable."""
+    selected = db_products[0] if db_products else None
+    if not selected:
+        return {"reasoning": ["No products in database"]}
+    q = query.lower()
+    for p in db_products:
+        if any(word in p["name"].lower() for word in q.split()):
+            selected = p
+            break
+    return {
+        "selected_product_id": selected["id"],
+        "selected_product_name": selected["name"],
+        "original_price": selected["price"],
+        "supplier_id": 1,
+        "confidence": 0.85,
+        "reasoning": [f"[Discovery] (Simulated) Matched '{selected['name']}' based on query keywords."]
+    }
 
 async def discovery_node(state: AgentState) -> dict:
     query = state["query"]
     db_products = await get_db_products()
-    
+
     if not llm:
-        # Fallback to faked logic if no API Key
-        selected = db_products[0] if db_products else None
-        if not selected:
-             return {"reasoning": ["No products in database"]}
-        if "macbook" in query.lower(): selected = next((p for p in db_products if "macbook" in p["name"].lower()), selected)
-        elif "keyboard" in query.lower(): selected = next((p for p in db_products if "keyboard" in p["name"].lower()), selected)
-        
-        return {
-            "selected_product_id": selected["id"],
-            "selected_product_name": selected["name"],
-            "original_price": selected["price"],
-            "supplier_id": 1,
-            "confidence": 0.9,
-            "reasoning": [f"Discovery Agent (Simulated) identified '{selected['name']}'."]
-        }
+        return _simulated_discovery(query, db_products)
 
     catalog_context = json.dumps(db_products, indent=2)
     system_prompt = f"""
@@ -71,12 +76,12 @@ async def discovery_node(state: AgentState) -> dict:
     try:
         resp = await llm.ainvoke([SystemMessage(content=system_prompt), HumanMessage(content=query)])
         data = json.loads(resp.content.replace("```json", "").replace("```", "").strip())
-        
+
         product_id = data.get("product_id")
         selected = next((p for p in db_products if p["id"] == product_id), db_products[0] if db_products else None)
         if not selected:
-             return {"reasoning": ["No products in database"]}
-        
+            return {"reasoning": ["No products in database"]}
+
         return {
             "selected_product_id": selected["id"],
             "selected_product_name": selected["name"],
@@ -86,5 +91,5 @@ async def discovery_node(state: AgentState) -> dict:
             "reasoning": [f"[Discovery] {data.get('reasoning', 'Found matching product.')}"]
         }
     except Exception as e:
-        logger.error(f"Discovery LLM Error: {e}")
-        return {"reasoning": [f"[Discovery] Error in reasoning: {str(e)}"]}
+        logger.warning(f"Discovery LLM Error (falling back to simulation): {e}")
+        return _simulated_discovery(query, db_products)

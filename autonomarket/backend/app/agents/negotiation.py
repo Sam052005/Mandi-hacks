@@ -7,24 +7,28 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Initialize Gemini Flash
+# Initialize Gemini Flash Lite
 llm = None
 if settings.GOOGLE_API_KEY:
     try:
-        llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=settings.GOOGLE_API_KEY)
+        llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", google_api_key=settings.GOOGLE_API_KEY)
     except Exception as e:
         logger.error(f"Failed to initialize Gemini: {e}")
+
+def _simulated_negotiation(product_name: str, original_price: float) -> dict:
+    """Fallback simulation when LLM is unavailable or quota exceeded."""
+    final_price = round(original_price * 0.92, 2)
+    return {
+        "final_price": final_price,
+        "reasoning": [f"[Negotiation] (Simulated) Secured an 8% volume discount on '{product_name}'. Final: ₹{final_price:,.2f}"]
+    }
 
 async def negotiation_node(state: AgentState) -> dict:
     product_name = state.get("selected_product_name")
     original_price = state.get("original_price", 0)
-    
+
     if not llm:
-        final_price = original_price * 0.92
-        return {
-            "final_price": final_price,
-            "reasoning": [f"[Negotiation] Simulated bargaining secured 8% discount. Final: ₹{final_price:,.2f}"]
-        }
+        return _simulated_negotiation(product_name, original_price)
 
     system_prompt = f"""
     You are the Negotiation Agent for AutonoMarket.
@@ -38,13 +42,14 @@ async def negotiation_node(state: AgentState) -> dict:
     try:
         resp = await llm.ainvoke([SystemMessage(content=system_prompt), HumanMessage(content="Start negotiation.")])
         data = json.loads(resp.content.replace("```json", "").replace("```", "").strip())
-        
+
         final_price = data.get("final_price", original_price)
-        
+
         return {
             "final_price": final_price,
             "reasoning": [f"[Negotiation] {data.get('bargaining_log', 'Successfully negotiated a better deal.')}"]
         }
     except Exception as e:
-        logger.error(f"Negotiation LLM Error: {e}")
-        return {"reasoning": [f"[Negotiation] Negotiation process encountered an error, falling back to original price."]}
+        logger.warning(f"Negotiation LLM Error (falling back to simulation): {e}")
+        return _simulated_negotiation(product_name, original_price)
+
